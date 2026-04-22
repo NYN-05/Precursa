@@ -370,6 +370,13 @@ def run_agent_for_shipment(
         state, plan = compute_candidate_routes(state, snapshot)
         state = select_route(state, plan)
         state = execute_reroute(db, state, snapshot, plan)
+        
+        # Always sync the latest DRI back to the snapshot for UI visibility
+        snapshot.provisional_dri = score.dri
+        db.add(snapshot)
+        db.flush()
+        cache_shipment_snapshot(snapshot)
+
         state = notify_stakeholders(db, state)
         state = get_copilot_explanation(state)
         log_action(db, state)

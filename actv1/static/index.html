@@ -2,97 +2,278 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Precursa Platform Test Frontend</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precursa - Self-Healing Supply Chain MVP</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+        }
+        .shipment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .shipment-id {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: var(--primary);
+        }
+        .dri-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .dri-low { background: #dcfce7; color: #166534; }
+        .dri-medium { background: #fef9c3; color: #854d0e; }
+        .dri-high { background: #fee2e2; color: #991b1b; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .status-in_transit { background: #dbeafe; color: #1e40af; }
+        .status-delayed { background: #fef3c7; color: #92400e; }
+        .status-rerouted { background: #f0f9ff; color: #0369a1; border: 1px solid #0369a1; }
+
+        .route-info {
+            font-size: 0.9em;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 6px;
+        }
+        .route-path {
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-disrupt { background: var(--danger); color: white; }
+        .btn-reroute { background: var(--primary); color: white; }
+        .btn-refresh { background: #64748b; color: white; }
+
+        .log-section {
+            margin-top: 40px;
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            font-family: monospace;
+            border-left: 3px solid #64748b;
+            padding-left: 10px;
+        }
+        .log-reroute { border-color: var(--primary); }
+        .log-disrupt { border-color: var(--danger); }
+    </style>
 </head>
 <body>
-    <h1>Precursa Platform Test Frontend</h1>
-    <p><a href="/docs">Swagger API Documentation</a></p>
+    <div class="container">
+        <header>
+            <h1>Precursa Supply Chain MVP</h1>
+            <div>
+                <button class="btn-refresh" onclick="loadShipments()">Refresh Data</button>
+                <span id="last-updated" style="font-size: 0.8em; color: #64748b; margin-left: 10px;"></span>
+            </div>
+        </header>
 
-    <section>
-        <h2>Health Checks</h2>
-        <button onclick="checkHealth()">Check Health</button>
-        <button onclick="checkReady()">Check Readiness</button>
-        <pre id="health-output"></pre>
-    </section>
+        <div id="shipment-grid" class="grid">
+            <!-- Shipments will be loaded here -->
+        </div>
 
-    <hr>
-
-    <section>
-        <h2>Authentication</h2>
-        <form id="login-form">
-            <input type="text" id="username" placeholder="Username" required value="admin">
-            <input type="password" id="password" placeholder="Password" required value="admin123">
-            <button type="submit">Login</button>
-        </form>
-        <pre id="auth-output"></pre>
-    </section>
-
-    <hr>
-
-    <section>
-        <h2>Protected Data</h2>
-        <button onclick="getUserInfo()">Get User Info (/auth/me)</button>
-        <pre id="protected-output"></pre>
-    </section>
+        <div class="log-section">
+            <h3>System Activity Log</h3>
+            <div id="activity-log">
+                <div class="log-entry">System initialized. Awaiting data...</div>
+            </div>
+        </div>
+    </div>
 
     <script>
-        const API_BASE = ""; // Relative to origin
-        let accessToken = localStorage.getItem("access_token");
+        const API_V1 = "/api/v1";
 
-        async function checkHealth() {
-            const res = await fetch(`${API_BASE}/health`);
-            const data = await res.json();
-            document.getElementById("health-output").innerText = JSON.stringify(data, null, 2);
+        function getDriClass(dri) {
+            if (dri >= 75) return "dri-high";
+            if (dri >= 30) return "dri-medium";
+            return "dri-low";
         }
 
-        async function checkReady() {
-            const res = await fetch(`${API_BASE}/ready`);
-            const data = await res.json();
-            document.getElementById("health-output").innerText = JSON.stringify(data, null, 2);
+        function log(message, type = '') {
+            const logEl = document.getElementById('activity-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type ? 'log-' + type : ''}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerText = `[${time}] ${message}`;
+            logEl.prepend(entry);
         }
 
-        document.getElementById("login-form").addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const username = document.getElementById("username").value;
-            const password = document.getElementById("password").value;
+        async function loadShipments() {
+            try {
+                const res = await fetch(`${API_V1}/state/snapshots`);
+                if (!res.ok) throw new Error("Failed to fetch shipments");
+                const shipments = await res.json();
+                
+                const grid = document.getElementById('shipment-grid');
+                grid.innerHTML = '';
+                
+                shipments.sort((a, b) => a.shipment_key.localeCompare(b.shipment_key));
 
-            const formData = new URLSearchParams();
-            formData.append("username", username);
-            formData.append("password", password);
+                shipments.forEach(s => {
+                    const fv = s.feature_vector || {};
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    
+                    const driClass = getDriClass(s.provisional_dri);
+                    const status = fv.status || 'unknown';
+                    
+                    card.innerHTML = `
+                        <div class="shipment-header">
+                            <div>
+                                <div class="shipment-id">${s.shipment_key}</div>
+                                <div class="status-badge status-${status}">${status.replace('_', ' ')}</div>
+                            </div>
+                            <div class="dri-badge ${driClass}">DRI: ${s.provisional_dri}</div>
+                        </div>
+                        <div><strong>Cargo:</strong> ${fv.cargo_type || 'General'}</div>
+                        <div class="route-info">
+                            <div><strong>Route:</strong></div>
+                            <div class="route-path">${(fv.current_route || []).join(' → ')}</div>
+                        </div>
+                        <div class="controls">
+                            <button class="btn-disrupt" onclick="triggerDisruption('${s.shipment_key}')" ${status === 'rerouted' ? 'disabled' : ''}>Trigger Disruption</button>
+                            <button class="btn-reroute" onclick="triggerReroute('${s.shipment_key}')" ${s.provisional_dri < 75 ? 'title="DRI below threshold" disabled' : ''}>Manual Reroute</button>
+                            <button class="btn-refresh" style="background: #1e293b;" onclick="askCopilot('${s.shipment_key}')">Explain Risk</button>
+                        </div>
+                        <div id="copilot-${s.shipment_key}" style="font-size: 0.85em; margin-top: 10px; font-style: italic; color: #475569; display: none; padding: 10px; background: #f8fafc; border-radius: 4px; border-left: 2px solid var(--primary);"></div>
+                    `;
+                    grid.appendChild(card);
+                });
 
-            const res = await fetch(`${API_BASE}/api/v1/auth/token`, {
-                method: "POST",
-                body: formData,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
-            });
-
-            const data = await res.json();
-            if (data.access_token) {
-                accessToken = data.access_token;
-                localStorage.setItem("access_token", accessToken);
-                document.getElementById("auth-output").innerText = "Login successful!";
-            } else {
-                document.getElementById("auth-output").innerText = "Login failed: " + JSON.stringify(data);
+                document.getElementById('last-updated').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+            } catch (err) {
+                console.error(err);
+                log(`Error: ${err.message}`, 'disrupt');
             }
-        });
-
-        async function getUserInfo() {
-            if (!accessToken) {
-                document.getElementById("protected-output").innerText = "Not logged in";
-                return;
-            }
-
-            const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
-                headers: {
-                    "Authorization": `Bearer ${accessToken}`
-                }
-            });
-
-            const data = await res.json();
-            document.getElementById("protected-output").innerText = JSON.stringify(data, null, 2);
         }
+
+        async function askCopilot(key) {
+            const el = document.getElementById(`copilot-${key}`);
+            el.style.display = 'block';
+            el.innerText = "Consulting Precursa Copilot...";
+            
+            try {
+                const res = await fetch(`${API_V1}/copilot`, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ shipment_key: key })
+                });
+                const data = await res.json();
+                el.innerText = data.answer || "No explanation available.";
+            } catch (err) {
+                el.innerText = "Error contacting Copilot.";
+            }
+        }
+
+        async function triggerDisruption(key) {
+            log(`Triggering disruption for ${key}...`, 'disrupt');
+            try {
+                const res = await fetch(`${API_V1}/mvp/trigger-disruption/${key}`, { method: 'POST' });
+                const data = await res.json();
+                log(`Disruption active for ${key}. New DRI: ${data.dri}`, 'disrupt');
+                loadShipments();
+            } catch (err) {
+                log(`Failed to trigger disruption: ${err.message}`, 'disrupt');
+            }
+        }
+
+        async function triggerReroute(key) {
+            log(`Initiating reroute for ${key}...`, 'reroute');
+            try {
+                const res = await fetch(`${API_V1}/mvp/reroute/${key}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.action_taken === 'reroute') {
+                    const newPath = data.selected_route.path.join(' → ');
+                    log(`SUCCESS: ${key} rerouted via ${newPath}. Cost: $${data.selected_route.cost_usd}`, 'reroute');
+                } else {
+                    log(`NOTICE: Agent decided: ${data.action_taken} for ${key}. Reason: ${data.approval_status}`, 'reroute');
+                }
+                loadShipments();
+            } catch (err) {
+                log(`Reroute error for ${key}: ${err.message}`, 'reroute');
+            }
+        }
+
+        // Initial load
+        loadShipments();
+        // Polling
+        setInterval(loadShipments, 5000);
     </script>
 </body>
 </html>

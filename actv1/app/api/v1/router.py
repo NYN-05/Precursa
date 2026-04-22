@@ -6,6 +6,7 @@ from app.api.v1.backtests import router as backtests_router
 from app.api.v1.copilot import router as copilot_router
 from app.api.v1.health import router as health_router
 from app.api.v1.ingestion import router as ingestion_router
+from app.api.v1.mvp import router as mvp_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.ops import router as ops_router
 from app.api.v1.protected import router as protected_router
@@ -31,3 +32,4 @@ api_router.include_router(copilot_router, prefix=settings.api_v1_prefix)
 api_router.include_router(backtests_router, prefix=settings.api_v1_prefix)
 api_router.include_router(wargame_router, prefix=settings.api_v1_prefix)
 api_router.include_router(ops_router, prefix=settings.api_v1_prefix)
+api_router.include_router(mvp_router, prefix=settings.api_v1_prefix)

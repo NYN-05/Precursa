@@ -1,0 +1,302 @@
+Good — this is exactly the right move.
+You don’t need “real integrations” — you need **realistic, swappable integrations**.
+
+I’ll give you a **complete external integration layer** that:
+
+* Works fully in MVP (mock mode)
+* Can switch to real APIs later
+* Feeds directly into your DRI pipeline
+* Doesn’t break your system if APIs fail
+
+---
+
+# 🚀 1. FINAL ARCHITECTURE (MVP INTEGRATIONS)
+
+```text
+Integrations Layer
+   ↓
+Adapters (Weather / AIS / Events)
+   ↓
+Normalized Data
+   ↓
+Feature Builder
+   ↓
+DRI Pipeline
+```
+
+---
+
+# 📁 2. FOLDER STRUCTURE
+
+```text
+backend/integrations/
+│
+├── base.py
+├── weather.py
+├── ais.py
+├── events.py
+├── factory.py
+```
+
+---
+
+# 🧠 3. BASE ADAPTER (MANDATORY)
+
+## 📌 `base.py`
+
+```python
+class BaseAdapter:
+    def fetch(self, **kwargs):
+        raise NotImplementedError
+```
+
+---
+
+# 🌦️ 4. WEATHER INTEGRATION
+
+## 📌 `weather.py`
+
+```python
+import random
+import requests
+from .base import BaseAdapter
+
+class WeatherAdapter(BaseAdapter):
+    def __init__(self, use_mock=True):
+        self.use_mock = use_mock
+
+    def fetch(self, lat, lon):
+        if self.use_mock:
+            return self._mock_weather()
+        return self._real_weather(lat, lon)
+
+    def _mock_weather(self):
+        return {
+            "weather_severity": round(random.uniform(0, 1), 2),
+            "wind_speed": random.randint(5, 40),
+            "storm": random.choice([0, 1])
+        }
+
+    def _real_weather(self, lat, lon):
+        try:
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+            res = requests.get(url, timeout=2).json()
+
+            return {
+                "weather_severity": min(res["current_weather"]["windspeed"] / 50, 1),
+                "wind_speed": res["current_weather"]["windspeed"],
+                "storm": 1 if res["current_weather"]["weathercode"] > 60 else 0
+            }
+        except:
+            return self._mock_weather()
+```
+
+---
+
+# 🚢 5. AIS / VESSEL DATA
+
+## 📌 `ais.py`
+
+```python
+import random
+from .base import BaseAdapter
+
+class AISAdapter(BaseAdapter):
+    def __init__(self, use_mock=True):
+        self.use_mock = use_mock
+
+    def fetch(self, shipment_id):
+        if self.use_mock:
+            return self._mock_ais()
+        return self._real_ais(shipment_id)
+
+    def _mock_ais(self):
+        speed = random.uniform(0, 20)
+        anomaly = 1 if speed < 2 else 0
+
+        return {
+            "vessel_speed": speed,
+            "route_deviation": random.uniform(0, 1),
+            "ais_anomaly": anomaly
+        }
+
+    def _real_ais(self, shipment_id):
+        # Placeholder (MarineTraffic requires paid API)
+        return self._mock_ais()
+```
+
+---
+
+# 🌍 6. EVENTS / GEOPOLITICAL / PORT DATA
+
+## 📌 `events.py`
+
+```python
+import random
+from .base import BaseAdapter
+
+class EventsAdapter(BaseAdapter):
+    def __init__(self, use_mock=True):
+        self.use_mock = use_mock
+
+    def fetch(self, port):
+        if self.use_mock:
+            return self._mock_events()
+        return self._real_events(port)
+
+    def _mock_events(self):
+        return {
+            "port_congestion": round(random.uniform(0, 1), 2),
+            "customs_delay": round(random.uniform(0, 1), 2),
+            "geo_risk": round(random.uniform(0, 1), 2)
+        }
+
+    def _real_events(self, port):
+        # Can plug news API / port feeds later
+        return self._mock_events()
+```
+
+---
+
+# 🏭 7. INTEGRATION FACTORY (IMPORTANT)
+
+## 📌 `factory.py`
+
+```python
+from .weather import WeatherAdapter
+from .ais import AISAdapter
+from .events import EventsAdapter
+
+class IntegrationFactory:
+    def __init__(self, use_mock=True):
+        self.weather = WeatherAdapter(use_mock)
+        self.ais = AISAdapter(use_mock)
+        self.events = EventsAdapter(use_mock)
+
+    def fetch_all(self, shipment):
+        weather = self.weather.fetch(
+            shipment["lat"], shipment["lon"]
+        )
+
+        ais = self.ais.fetch(shipment["id"])
+
+        events = self.events.fetch(shipment["origin"])
+
+        return {**weather, **ais, **events}
+```
+
+---
+
+# 🔗 8. CONNECT TO YOUR DRI PIPELINE
+
+## 📌 Usage inside `risk_scoring.py`
+
+```python
+from integrations.factory import IntegrationFactory
+from ml.pipeline.pipeline import compute_dri_pipeline
+
+factory = IntegrationFactory(use_mock=True)
+
+def compute_dri_with_integrations(shipment):
+    external_data = factory.fetch_all(shipment)
+
+    combined_data = {**shipment, **external_data}
+
+    return compute_dri_pipeline(combined_data)
+```
+
+---
+
+# 🔄 9. SAMPLE OUTPUT (REALISTIC)
+
+```json
+{
+  "port_congestion": 0.82,
+  "weather_severity": 0.65,
+  "vessel_speed": 1.2,
+  "ais_anomaly": 1,
+  "geo_risk": 0.3,
+  "customs_delay": 0.4
+}
+```
+
+👉 This feeds directly into your DRI system.
+
+---
+
+# ⚠️ 10. FAIL-SAFE DESIGN (CRITICAL)
+
+Every adapter:
+
+```python
+try:
+    return real_data
+except:
+    return mock_data
+```
+
+👉 This ensures:
+
+* no API failure crashes
+* consistent demo
+
+---
+
+# 🔥 11. SWITCH TO REAL APIs (FUTURE)
+
+Change ONLY:
+
+```python
+factory = IntegrationFactory(use_mock=False)
+```
+
+---
+
+### Then plug:
+
+* Weather → OpenWeather / Open-Meteo
+* AIS → MarineTraffic / AISHub
+* Events → NewsAPI / Port feeds
+
+---
+
+# 🧠 FINAL TRUTH
+
+What you now have:
+
+```text
+Realistic data simulation layer ✅
+Pluggable real integrations ✅
+Consistent DRI input ✅
+Demo-safe system ✅
+```
+
+---
+
+# 🚨 IMPORTANT WARNING
+
+Do NOT say:
+
+❌ “We use real-time AIS + weather APIs”
+
+Say:
+
+✅ “We use a modular integration layer with mock + real adapters. MVP runs in simulated real-time mode.”
+
+---
+
+# 🚀 NEXT STEP
+
+Now implement this and test:
+
+1. Call `/api/shipments`
+2. Check if DRI changes dynamically
+3. Trigger disruption
+
+---
+
+Then tell me:
+
+👉 “Integration working / not working”
+
+I’ll help you **connect it fully to your agent + routing system** so your demo becomes 🔥.

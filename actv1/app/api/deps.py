@@ -12,6 +12,7 @@ from app.db.models import User
 from app.db.session import get_db
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/token")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/token", auto_error=False)
 
 
 class AuthContext(TypedDict):
@@ -20,8 +21,19 @@ class AuthContext(TypedDict):
 
 
 async def get_current_user_context(
-    db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
+    db: Session = Depends(get_db), token: str | None = Depends(oauth2_scheme_optional)
 ) -> AuthContext:
+    if settings.mvp_mode:
+        if not token:
+            return {"username": "mvp_admin", "roles": ["admin"]}
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     payload = decode_access_token(token)
     username = payload.get("sub")
 

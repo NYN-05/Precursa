@@ -13,3 +13,4 @@ scikit-learn==1.5.2
 networkx==3.3
 PuLP==2.9.0
 aiosqlite==0.20.0
+requests==2.32.3
