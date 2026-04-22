@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthContext, require_roles
-from app.db.models import AgentAction, AgentOverride
 from app.db.session import get_db
 from app.services.agent_service import (
     clear_agent_override,

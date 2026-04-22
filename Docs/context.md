@@ -4,10 +4,11 @@ This file is the single-read overview of the Precursa workspace. It condenses ev
 
 ## How to Read This Workspace
 
-- `Docs/` is the current source of truth.
+- `Docs/` is the current source of truth for product intent.
+- `actv1/` is the current runnable backend implementation.
 - `doc_old/` is legacy material and is superseded by `Docs/`.
 - `Instructions.md` is the workspace operating manual and sets the behavior rules for future edits.
-- The workspace currently contains documentation, diagrams, and research artifacts only. There is no application source code in the folder yet.
+- `docs/implementation_map_actv1.md` maps documented chunks to implemented backend files and should be used for current implementation status.
 
 ## One-Sentence Summary
 
@@ -410,13 +411,20 @@ The files are consistent with each other in three different ways:
 
 That means the workspace is not a collection of unrelated notes; it is a coordinated product narrative with one central system design.
 
-## What Is Missing From the Workspace
+## Current Implementation Snapshot
 
-The folder does not yet contain implementation code.
+The workspace now contains a runnable backend source tree in `actv1/`.
 
-There is no backend source tree, frontend source tree, test suite, package manifest, or deployment config in the current workspace. The docs are planning and architecture artifacts, not a runnable app.
+Implemented backend scope:
 
-That matters because the current task is documentation and context extraction, not code repair.
+- Chunks 1-4: FastAPI foundation, auth, ingestion, feature state, risk scoring, and SHAP-style factors.
+- Chunk 5: NetworkX route candidates, PuLP route selection, hard constraints, rejection reasons, and persisted route records.
+- Chunk 6: autonomous agent flow, overrides, notifications, and immutable audit actions.
+- Chunk 7: backend realtime/dashboard APIs, WebSocket broadcaster, and durable notifications.
+- Chunk 8: grounded copilot answers and what-if simulations.
+- Chunk 9: Ever Given replay, Disturber vs Healer war game, observability, DLQ/idempotency schema, and mock streaming fallback.
+
+The frontend/dashboard code is still not present in this workspace; `actv1` exposes the backend APIs needed by such a dashboard.
 
 ## Practical Reading Order
 
@@ -434,4 +442,4 @@ If a human or AI agent wants to understand the project fast, the best order is:
 
 Precursa is a documentation-first design for an autonomous supply-chain disruption platform. The v2 docs define a much stronger system than the legacy docs: the agent is central, DRI is explainable, route selection is constraint-aware, validation is historical and adversarial, and the product is meant to be deployable, testable, and auditable.
 
-If this workspace is implemented later, the docs imply the first real source code should be a FastAPI backend, a React dashboard, a model scoring pipeline, a route solver, and an agent loop with strict audit logging.
+The next major gap is a frontend dashboard/client. The backend API surface for routes, agent actions, copilot, backtests, wargame, realtime events, and operations telemetry is now present in `actv1`.

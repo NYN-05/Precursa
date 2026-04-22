@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.api.deps import AuthContext, require_roles
-from app.db.models import CopilotInteraction, WhatIfSimulation
 from app.db.session import get_db
 from app.services.copilot import answer_question
 from app.services.simulation import run_what_if_simulation
@@ -84,7 +83,11 @@ def what_if_endpoint(
     _: AuthContext = Depends(require_roles("admin", "ops_analyst", "logistics_manager")),
 ) -> WhatIfResponse:
     try:
-        record = run_what_if_simulation(db, shipment_key=request.shipment_key, scenario=request.scenario)
+        record = run_what_if_simulation(
+            db,
+            shipment_key=request.shipment_key,
+            scenario=request.scenario,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     db.commit()

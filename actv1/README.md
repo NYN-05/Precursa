@@ -1,6 +1,6 @@
-# Precursa Backend Slice (Chunks 1-4)
+# Precursa Backend Slice (Chunks 1-9)
 
-This folder contains the implemented backend scope for Precursa Chunks 1 through 4.
+This folder contains the implemented backend scope for Precursa Chunks 1 through 9.
 
 ## Delivered scope
 
@@ -23,6 +23,25 @@ This folder contains the implemented backend scope for Precursa Chunks 1 through
    - Isolation Forest anomaly signal
    - DRI normalization to `0-100` integer
    - Top SHAP factors API per shipment
+- Chunk 5: Route intelligence and constraint solver
+   - NetworkX candidate paths
+   - PuLP feasible-route selection
+   - Cold-chain, sanctions, SLA, weight, tariff, and policy checks
+- Chunk 6: Autonomous agent and audit
+   - Assess, reroute, notify, explain, and log flow
+   - Ops override workflow
+   - Durable agent action audit log
+- Chunk 7: Realtime API and notifications
+   - WebSocket live event broadcaster
+   - Dashboard summary API
+   - Durable notification records
+- Chunk 8: Copilot and what-if simulation
+   - Grounded copilot answers from SHAP and LP constraints
+   - What-if risk and route projection API
+- Chunk 9: Proof loops and production hardening
+   - Ever Given replay
+   - Disturber vs Healer war game
+   - Metrics, retry/DLQ, idempotency tables, and mock streaming fallback
 
 ## Local setup (no virtual environment required)
 
@@ -52,6 +71,27 @@ This folder contains the implemented backend scope for Precursa Chunks 1 through
 - `GET /api/v1/state/cache/{shipment_key}`
 - `GET /api/v1/risk/shipments?limit=...&top_k=...`
 - `GET /api/v1/risk/shipments/{shipment_key}?top_k=...`
+- `POST /api/v1/routes/reroute/{shipment_key}`
+- `POST /api/v1/agent/run/{shipment_key}`
+- `POST /api/v1/agent/tick`
+- `GET /api/v1/agent/actions`
+- `POST /api/v1/agent/override/{shipment_key}`
+- `POST /api/v1/agent/override/{shipment_key}/clear`
+- `GET /api/v1/realtime/dashboard`
+- `WS /api/v1/ws/live`
+- `GET /api/v1/notifications`
+- `POST /api/v1/copilot`
+- `POST /api/v1/copilot/what-if`
+- `POST /api/v1/backtests/ever-given`
+- `GET /api/v1/backtests`
+- `POST /api/v1/wargame/start`
+- `GET /api/v1/wargame/status/{session_id}`
+- `POST /api/v1/wargame/stop/{session_id}`
+- `GET /api/v1/wargame/history/{session_id}`
+- `GET /api/v1/ops/metrics`
+- `GET /api/v1/ops/streaming/status`
+- `POST /api/v1/ops/streaming/mock-tick`
+- `GET /api/v1/ops/dead-letter`
 
 ## Auth bootstrap behavior
 

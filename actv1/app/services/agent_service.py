@@ -49,6 +49,12 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _as_aware(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _dri_level(dri: int) -> str:
     if dri >= settings.dri_threshold_red:
         return "red"
@@ -117,7 +123,7 @@ def _active_override(db: Session, shipment_key: str) -> AgentOverride | None:
     )
     if override is None:
         return None
-    if override.expires_at and override.expires_at <= _now():
+    if override.expires_at and _as_aware(override.expires_at) <= _now():
         override.active = False
         db.add(override)
         db.flush()
@@ -169,7 +175,10 @@ def clear_agent_override(db: Session, shipment_key: str, requested_by: str) -> A
     override.requested_by = requested_by
     db.add(override)
     db.flush()
-    broadcaster.publish("agent_override_cleared", {"shipment_key": shipment_key, "requested_by": requested_by})
+    broadcaster.publish(
+        "agent_override_cleared",
+        {"shipment_key": shipment_key, "requested_by": requested_by},
+    )
     return override
 
 
@@ -190,7 +199,10 @@ def assess_risk(state: AgentState) -> AgentState:
     return state
 
 
-def compute_candidate_routes(state: AgentState, snapshot: ShipmentSnapshot) -> tuple[AgentState, RoutePlanResult | None]:
+def compute_candidate_routes(
+    state: AgentState,
+    snapshot: ShipmentSnapshot,
+) -> tuple[AgentState, RoutePlanResult | None]:
     if state.get("action_taken") not in {"reroute", "monitor"}:
         state["candidate_routes"] = []
         state["lp_valid_routes"] = []
@@ -240,7 +252,9 @@ def execute_reroute(
         state["route_selected_id"] = selected_record.id
         if state.get("action_taken") == "reroute":
             state["selected_route"] = _route_to_dict(selected_record)
-            feature_vector = snapshot.feature_vector if isinstance(snapshot.feature_vector, dict) else {}
+            feature_vector = (
+                snapshot.feature_vector if isinstance(snapshot.feature_vector, dict) else {}
+            )
             feature_vector["current_route"] = selected_record.path
             feature_vector["current_waypoints"] = selected_record.waypoints
             feature_vector["status"] = "rerouted"
@@ -323,7 +337,9 @@ def run_agent_for_shipment(
     replay_data: dict[str, Any] | None = None,
 ) -> AgentState:
     with latency_timer("agent_run"):
-        snapshot = db.scalar(select(ShipmentSnapshot).where(ShipmentSnapshot.shipment_key == shipment_key))
+        snapshot = db.scalar(
+            select(ShipmentSnapshot).where(ShipmentSnapshot.shipment_key == shipment_key)
+        )
         if snapshot is None:
             raise ValueError(f"Shipment snapshot not found for key '{shipment_key}'")
 

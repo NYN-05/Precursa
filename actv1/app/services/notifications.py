@@ -42,9 +42,16 @@ def send_notification(
     return record
 
 
-def list_notifications(db: Session, shipment_key: str | None = None, limit: int = 50) -> list[NotificationRecord]:
+def list_notifications(
+    db: Session,
+    shipment_key: str | None = None,
+    limit: int = 50,
+) -> list[NotificationRecord]:
     query = select(NotificationRecord)
     if shipment_key:
         query = query.where(NotificationRecord.shipment_key == shipment_key)
-    query = query.order_by(desc(NotificationRecord.created_at), desc(NotificationRecord.id)).limit(limit)
+    query = query.order_by(
+        desc(NotificationRecord.created_at),
+        desc(NotificationRecord.id),
+    ).limit(limit)
     return list(db.scalars(query).all())

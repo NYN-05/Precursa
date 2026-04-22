@@ -38,7 +38,9 @@ def _scenario_feature_vector(base: dict[str, Any], scenario: dict[str, Any]) -> 
 
     delay_delta_hours = scenario.get("delay_delta_hours")
     if delay_delta_hours is not None:
-        projected["delay_hours"] = float(projected.get("delay_hours", 0.0) or 0.0) + float(delay_delta_hours)
+        projected["delay_hours"] = float(projected.get("delay_hours", 0.0) or 0.0) + float(
+            delay_delta_hours
+        )
 
     return projected
 
@@ -48,7 +50,9 @@ def run_what_if_simulation(
     shipment_key: str,
     scenario: dict[str, Any],
 ) -> WhatIfSimulation:
-    snapshot = db.scalar(select(ShipmentSnapshot).where(ShipmentSnapshot.shipment_key == shipment_key))
+    snapshot = db.scalar(
+        select(ShipmentSnapshot).where(ShipmentSnapshot.shipment_key == shipment_key)
+    )
     if snapshot is None:
         raise ValueError(f"Shipment snapshot not found for key '{shipment_key}'")
 

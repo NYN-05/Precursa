@@ -1,16 +1,17 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
     Float,
     ForeignKey,
     Integer,
-    JSON,
     String,
     Table,
     Text,

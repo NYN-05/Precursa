@@ -111,7 +111,9 @@ def answer_question(
     question: str,
     persist: bool = True,
 ) -> CopilotAnswer:
-    snapshot = db.scalar(select(ShipmentSnapshot).where(ShipmentSnapshot.shipment_key == shipment_key))
+    snapshot = db.scalar(
+        select(ShipmentSnapshot).where(ShipmentSnapshot.shipment_key == shipment_key)
+    )
     action = _latest_action(db, shipment_key)
     route = _latest_selected_route(db, shipment_key)
 
@@ -125,7 +127,9 @@ def answer_question(
         action_taken = action.action_type
 
     if not shap_factors and snapshot is not None:
-        feature_vector = snapshot.feature_vector if isinstance(snapshot.feature_vector, dict) else {}
+        feature_vector = (
+            snapshot.feature_vector if isinstance(snapshot.feature_vector, dict) else {}
+        )
         shap_factors = list(feature_vector.get("shap_factors") or [])
         dri_score = snapshot.provisional_dri
 

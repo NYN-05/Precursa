@@ -46,7 +46,10 @@ class RoutePlanResponse(BaseModel):
     rejected_routes: list[RejectedRouteResponse]
 
 
-def _to_option_response(option: RouteOption, selected_path: list[str] | None) -> RouteOptionResponse:
+def _to_option_response(
+    option: RouteOption,
+    selected_path: list[str] | None,
+) -> RouteOptionResponse:
     return RouteOptionResponse(
         path=option.path,
         waypoints=option.waypoints,

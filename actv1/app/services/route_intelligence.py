@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -335,7 +336,7 @@ class RouteIntelligenceService:
         risk_score = 0.0
         carbon_kg = 0.0
 
-        for source, destination in zip(path, path[1:]):
+        for source, destination in zip(path, path[1:], strict=False):
             edge = self._graph[source][destination]
             cost_usd += float(edge["cost_usd"])
             eta_hours += float(edge["eta_hours"])
@@ -427,7 +428,7 @@ class RouteIntelligenceService:
         weight_kg = self._safe_float(feature_vector.get("weight_kg"), default=0.0)
         if weight_kg > 0:
             overloaded_legs: list[str] = []
-            for source, destination in zip(route.path, route.path[1:]):
+            for source, destination in zip(route.path, route.path[1:], strict=False):
                 edge = self._graph[source][destination]
                 max_weight_kg = float(edge.get("max_weight_kg", 0.0))
                 if max_weight_kg > 0 and weight_kg > max_weight_kg:

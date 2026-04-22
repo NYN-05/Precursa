@@ -152,7 +152,11 @@ def run_ever_given_backtest(db: Session) -> BacktestResult:
         return result
 
 
-def list_backtest_results(db: Session, scenario: str | None = None, limit: int = 20) -> list[BacktestResult]:
+def list_backtest_results(
+    db: Session,
+    scenario: str | None = None,
+    limit: int = 20,
+) -> list[BacktestResult]:
     query = select(BacktestResult)
     if scenario:
         query = query.where(BacktestResult.scenario == scenario)
