@@ -1,10 +1,11 @@
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
-import json
 from typing import Any
 
 SUPPORTED_SOURCES = {"ais", "weather", "customs", "tariff", "news"}
+NormalizedEvent = tuple[str | None, str, str | None, float, datetime, str | None]
 
 
 @dataclass
@@ -21,7 +22,9 @@ class CanonicalEvent:
 
 def _parse_timestamp(value: Any) -> datetime:
     if isinstance(value, datetime):
-        return value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if value.tzinfo:
+            return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=timezone.utc)
 
     if isinstance(value, str):
         normalized = value.replace("Z", "+00:00")
@@ -40,7 +43,10 @@ def _parse_timestamp(value: Any) -> datetime:
 
 def _normalize_dedupe_timestamp(value: Any) -> str | None:
     if isinstance(value, datetime):
-        normalized = value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        if value.tzinfo:
+            normalized = value.astimezone(timezone.utc)
+        else:
+            normalized = value.replace(tzinfo=timezone.utc)
         return normalized.isoformat()
 
     if isinstance(value, str):
@@ -90,7 +96,7 @@ def _dedupe_key(
     return sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def _normalize_ais(payload: dict[str, Any]) -> tuple[str | None, str, str | None, float, datetime, str | None]:
+def _normalize_ais(payload: dict[str, Any]) -> NormalizedEvent:
     source_event_id = payload.get("event_id")
     entity_id = str(payload.get("mmsi")) if payload.get("mmsi") is not None else None
     event_type = "vessel_position_update"
@@ -102,7 +108,7 @@ def _normalize_ais(payload: dict[str, Any]) -> tuple[str | None, str, str | None
     return source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp
 
 
-def _normalize_weather(payload: dict[str, Any]) -> tuple[str | None, str, str | None, float, datetime, str | None]:
+def _normalize_weather(payload: dict[str, Any]) -> NormalizedEvent:
     source_event_id = payload.get("event_id")
     entity_id = payload.get("port_code")
     event_type = "weather_alert"
@@ -113,7 +119,7 @@ def _normalize_weather(payload: dict[str, Any]) -> tuple[str | None, str, str | 
     return source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp
 
 
-def _normalize_customs(payload: dict[str, Any]) -> tuple[str | None, str, str | None, float, datetime, str | None]:
+def _normalize_customs(payload: dict[str, Any]) -> NormalizedEvent:
     source_event_id = payload.get("event_id")
     entity_id = payload.get("shipment_ref")
     event_type = "customs_status"
@@ -125,7 +131,7 @@ def _normalize_customs(payload: dict[str, Any]) -> tuple[str | None, str, str | 
     return source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp
 
 
-def _normalize_tariff(payload: dict[str, Any]) -> tuple[str | None, str, str | None, float, datetime, str | None]:
+def _normalize_tariff(payload: dict[str, Any]) -> NormalizedEvent:
     source_event_id = payload.get("event_id")
     entity_id = payload.get("shipment_ref")
     event_type = "tariff_update"
@@ -137,7 +143,7 @@ def _normalize_tariff(payload: dict[str, Any]) -> tuple[str | None, str, str | N
     return source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp
 
 
-def _normalize_news(payload: dict[str, Any]) -> tuple[str | None, str, str | None, float, datetime, str | None]:
+def _normalize_news(payload: dict[str, Any]) -> NormalizedEvent:
     source_event_id = payload.get("event_id")
     entity_id = payload.get("region")
     event_type = "news_signal"
@@ -153,15 +159,50 @@ def normalize_event(source: str, payload: dict[str, Any]) -> CanonicalEvent:
         raise ValueError(f"Unsupported source: {source}")
 
     if source == "ais":
-        source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp = _normalize_ais(payload)
+        (
+            source_event_id,
+            event_type,
+            entity_id,
+            severity,
+            occurred_at,
+            dedupe_timestamp,
+        ) = _normalize_ais(payload)
     elif source == "weather":
-        source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp = _normalize_weather(payload)
+        (
+            source_event_id,
+            event_type,
+            entity_id,
+            severity,
+            occurred_at,
+            dedupe_timestamp,
+        ) = _normalize_weather(payload)
     elif source == "customs":
-        source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp = _normalize_customs(payload)
+        (
+            source_event_id,
+            event_type,
+            entity_id,
+            severity,
+            occurred_at,
+            dedupe_timestamp,
+        ) = _normalize_customs(payload)
     elif source == "tariff":
-        source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp = _normalize_tariff(payload)
+        (
+            source_event_id,
+            event_type,
+            entity_id,
+            severity,
+            occurred_at,
+            dedupe_timestamp,
+        ) = _normalize_tariff(payload)
     else:
-        source_event_id, event_type, entity_id, severity, occurred_at, dedupe_timestamp = _normalize_news(payload)
+        (
+            source_event_id,
+            event_type,
+            entity_id,
+            severity,
+            occurred_at,
+            dedupe_timestamp,
+        ) = _normalize_news(payload)
 
     dedupe_key = _dedupe_key(
         source=source,

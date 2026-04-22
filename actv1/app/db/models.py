@@ -77,8 +77,50 @@ class IngestionEvent(Base):
     event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     entity_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     severity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
     ingested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+
+class ShipmentSnapshot(Base):
+    __tablename__ = "shipment_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    shipment_key: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
+    latest_event_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("ingestion_events.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    last_source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    last_event_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    last_entity_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    event_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    avg_severity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    last_severity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    last_occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    provisional_dri: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    feature_vector: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        index=True,
+    )

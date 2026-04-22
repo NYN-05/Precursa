@@ -8,11 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import AuthContext, require_roles
 from app.db.session import get_db
 from app.ingestion.normalizer import SUPPORTED_SOURCES
-from app.services.ingestion import (
-    ingest_event as ingest_event_service,
-    ingest_mock_events,
-    list_ingestion_events,
-)
+from app.services import ingestion as ingestion_service
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
@@ -60,7 +56,7 @@ def ingest_event_endpoint(
     _: AuthContext = Depends(require_roles("admin", "ops_analyst", "logistics_manager")),
 ) -> IngestEventResult:
     source = _validate_source(request.source)
-    event, created = ingest_event_service(db, source=source, payload=request.payload)
+    event, created = ingestion_service.ingest_event(db, source=source, payload=request.payload)
     return IngestEventResult(
         created=created,
         event=IngestionEventResponse.model_validate(event),
@@ -75,7 +71,7 @@ def ingest_mock_events_endpoint(
     _: AuthContext = Depends(require_roles("admin", "ops_analyst", "logistics_manager")),
 ) -> list[IngestEventResult]:
     validated_source = _validate_source(source)
-    ingested = ingest_mock_events(db, source=validated_source, count=count)
+    ingested = ingestion_service.ingest_mock_events(db, source=validated_source, count=count)
     return [
         IngestEventResult(created=created, event=IngestionEventResponse.model_validate(event))
         for event, created in ingested
@@ -90,5 +86,5 @@ def list_events_endpoint(
     _: AuthContext = Depends(require_roles("admin", "ops_analyst", "logistics_manager", "auditor")),
 ) -> list[IngestionEventResponse]:
     normalized_source = _validate_source(source) if source else None
-    events = list_ingestion_events(db, source=normalized_source, limit=limit)
+    events = ingestion_service.list_ingestion_events(db, source=normalized_source, limit=limit)
     return [IngestionEventResponse.model_validate(event) for event in events]

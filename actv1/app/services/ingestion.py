@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.models import IngestionEvent
 from app.ingestion.mock_adapters import generate_mock_payload
 from app.ingestion.normalizer import SUPPORTED_SOURCES, normalize_event
+from app.services.feature_state import cache_shipment_snapshot, upsert_shipment_snapshot
 
 
 def ingest_event(db: Session, source: str, payload: dict) -> tuple[IngestionEvent, bool]:
@@ -13,7 +14,9 @@ def ingest_event(db: Session, source: str, payload: dict) -> tuple[IngestionEven
 
     canonical = normalize_event(source, payload)
 
-    existing = db.scalar(select(IngestionEvent).where(IngestionEvent.dedupe_key == canonical.dedupe_key))
+    existing = db.scalar(
+        select(IngestionEvent).where(IngestionEvent.dedupe_key == canonical.dedupe_key)
+    )
     if existing is not None:
         return existing, False
 
@@ -29,16 +32,25 @@ def ingest_event(db: Session, source: str, payload: dict) -> tuple[IngestionEven
     )
     db.add(event)
 
+    snapshot = None
     try:
+        db.flush()
+        snapshot = upsert_shipment_snapshot(db, event)
         db.commit()
     except IntegrityError:
         db.rollback()
-        existing = db.scalar(select(IngestionEvent).where(IngestionEvent.dedupe_key == canonical.dedupe_key))
+        existing = db.scalar(
+            select(IngestionEvent).where(IngestionEvent.dedupe_key == canonical.dedupe_key)
+        )
         if existing is None:
             raise
         return existing, False
 
     db.refresh(event)
+    if snapshot is not None:
+        db.refresh(snapshot)
+        cache_shipment_snapshot(snapshot)
+
     return event, True
 
 
