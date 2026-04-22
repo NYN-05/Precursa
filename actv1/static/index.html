@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Precursa Platform Test Frontend</title>
+</head>
+<body>
+    <h1>Precursa Platform Test Frontend</h1>
+    <p><a href="/docs">Swagger API Documentation</a></p>
+
+    <section>
+        <h2>Health Checks</h2>
+        <button onclick="checkHealth()">Check Health</button>
+        <button onclick="checkReady()">Check Readiness</button>
+        <pre id="health-output"></pre>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>Authentication</h2>
+        <form id="login-form">
+            <input type="text" id="username" placeholder="Username" required value="admin">
+            <input type="password" id="password" placeholder="Password" required value="admin123">
+            <button type="submit">Login</button>
+        </form>
+        <pre id="auth-output"></pre>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>Protected Data</h2>
+        <button onclick="getUserInfo()">Get User Info (/auth/me)</button>
+        <pre id="protected-output"></pre>
+    </section>
+
+    <script>
+        const API_BASE = ""; // Relative to origin
+        let accessToken = localStorage.getItem("access_token");
+
+        async function checkHealth() {
+            const res = await fetch(`${API_BASE}/health`);
+            const data = await res.json();
+            document.getElementById("health-output").innerText = JSON.stringify(data, null, 2);
+        }
+
+        async function checkReady() {
+            const res = await fetch(`${API_BASE}/ready`);
+            const data = await res.json();
+            document.getElementById("health-output").innerText = JSON.stringify(data, null, 2);
+        }
+
+        document.getElementById("login-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            const formData = new URLSearchParams();
+            formData.append("username", username);
+            formData.append("password", password);
+
+            const res = await fetch(`${API_BASE}/api/v1/auth/token`, {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
+            });
+
+            const data = await res.json();
+            if (data.access_token) {
+                accessToken = data.access_token;
+                localStorage.setItem("access_token", accessToken);
+                document.getElementById("auth-output").innerText = "Login successful!";
+            } else {
+                document.getElementById("auth-output").innerText = "Login failed: " + JSON.stringify(data);
+            }
+        });
+
+        async function getUserInfo() {
+            if (!accessToken) {
+                document.getElementById("protected-output").innerText = "Not logged in";
+                return;
+            }
+
+            const res = await fetch(`${API_BASE}/api/v1/auth/me`, {
+                headers: {
+                    "Authorization": `Bearer ${accessToken}`
+                }
+            });
+
+            const data = await res.json();
+            document.getElementById("protected-output").innerText = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>

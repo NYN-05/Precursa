@@ -3,6 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -37,6 +38,7 @@ async def lifespan(_: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.project_name, lifespan=lifespan)
     app.include_router(api_router)
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
     return app
 
