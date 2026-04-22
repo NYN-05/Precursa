@@ -74,8 +74,18 @@ def _build_feature_vector(snapshot: ShipmentSnapshot, event: IngestionEvent) -> 
         "region",
         "status",
         "condition",
+        "cargo_type",
+        "origin_port",
+        "destination_port",
         "origin_country",
         "destination_country",
+        "cargo_value_usd",
+        "sla_hours",
+        "temp_requirement_celsius",
+        "max_risk_tolerance",
+        "tariff_priority_weight",
+        "policy_priority_weight",
+        "sanctioned_ports",
     ):
         value = payload.get(field)
         if value is not None:
