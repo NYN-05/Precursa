@@ -360,8 +360,7 @@ echo "ml/models/*.pkl" >> .gitignore
 echo "ml/models/*.pt" >> .gitignore
 echo "ml/data/raw/" >> .gitignore
 ```
-
-**2. Backend scaffold**
+ .+
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
