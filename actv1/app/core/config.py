@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     database_url: str = "postgresql+psycopg://precursa:precursa@localhost:5432/precursa"
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = ""  # Empty = use in-memory fallback
     state_cache_key_prefix: str = "shipment_state"
     state_cache_ttl_seconds: int = 3600
     agent_tick_seconds: int = 120
