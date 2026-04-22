@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://precursa:precursa@localhost:5432/precursa"
     redis_url: str = "redis://localhost:6379/0"
+    state_cache_key_prefix: str = "shipment_state"
+    state_cache_ttl_seconds: int = 3600
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from random import choice, randint, uniform
 from uuid import uuid4
 
@@ -8,7 +8,7 @@ CUSTOMS_STATUSES = ["cleared", "inspection", "delayed"]
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def mock_ais_event() -> dict:

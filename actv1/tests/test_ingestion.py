@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import select
 
 from app.core.security import get_password_hash
@@ -55,6 +56,21 @@ def test_ingest_mock_events_creates_canonical_records(client, db_session):
     assert len(list_response.json()) >= 2
 
 
+@pytest.mark.parametrize("source", ["ais", "weather", "customs", "tariff", "news"])
+def test_ingest_mock_events_supports_all_sources(client, db_session, source: str):
+    headers = _auth_headers(client, db_session)
+
+    response = client.post(
+        f"/api/v1/ingestion/mock/{source}?count=1",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["event"]["source"] == source
+
+
 def test_dedupe_logic_prevents_duplicate_insert(client, db_session):
     headers = _auth_headers(client, db_session)
 
@@ -105,3 +121,44 @@ def test_timestamp_fallback_when_source_timestamp_missing(client, db_session):
     assert response.status_code == 200
     occurred_at = response.json()["event"]["occurred_at"]
     assert datetime.fromisoformat(occurred_at.replace("Z", "+00:00"))
+
+
+def test_dedupe_logic_when_source_timestamp_missing(client, db_session):
+    headers = _auth_headers(client, db_session)
+
+    payload = {
+        "event_id": "news-missing-ts-fixed-id",
+        "headline": "Port labor strike escalates",
+        "region": "DEHAM",
+        "impact_score": 0.81,
+    }
+
+    first = client.post(
+        "/api/v1/ingestion/events",
+        headers=headers,
+        json={"source": "news", "payload": payload},
+    )
+    second = client.post(
+        "/api/v1/ingestion/events",
+        headers=headers,
+        json={"source": "news", "payload": payload},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["created"] is True
+    assert second.json()["created"] is False
+    assert first.json()["event"]["id"] == second.json()["event"]["id"]
+
+
+def test_ingestion_rejects_unsupported_source(client, db_session):
+    headers = _auth_headers(client, db_session)
+
+    response = client.post(
+        "/api/v1/ingestion/events",
+        headers=headers,
+        json={"source": "unknown-source", "payload": {"event_id": "x"}},
+    )
+
+    assert response.status_code == 400
+    assert "Unsupported source" in response.json()["detail"]
