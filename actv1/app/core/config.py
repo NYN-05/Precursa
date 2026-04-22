@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     state_cache_key_prefix: str = "shipment_state"
     state_cache_ttl_seconds: int = 3600
+    agent_tick_seconds: int = 120
+    agent_autostart: bool = True
+    agent_reroute_threshold: int = 75
+    dri_threshold_yellow: int = 31
+    dri_threshold_orange: int = 61
+    dri_threshold_red: int = 81
+    wargame_tick_seconds: int = 10
+    wargame_disturber_intensity: float = 0.7
+    kafka_bootstrap_servers: str = ""
+    notification_default_recipient: str = "ops-control@precursa.local"
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
