@@ -9,6 +9,7 @@ from app.services.route_intelligence import (
     RejectedRoute,
     RouteOption,
     RoutePlanResult,
+    persist_route_plan,
     route_intelligence_service,
 )
 
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/routes", tags=["routes"])
 
 class RouteOptionResponse(BaseModel):
     path: list[str]
+    waypoints: list[dict[str, float | str]]
     cost_usd: float
     eta_hours: float
     risk_score: float
@@ -24,6 +26,8 @@ class RouteOptionResponse(BaseModel):
     tariff_delta_usd: float
     policy_penalty_usd: float
     composite_score: float
+    lp_score: float
+    constraints_applied: list[str]
     selected_best: bool
 
 
@@ -45,6 +49,7 @@ class RoutePlanResponse(BaseModel):
 def _to_option_response(option: RouteOption, selected_path: list[str] | None) -> RouteOptionResponse:
     return RouteOptionResponse(
         path=option.path,
+        waypoints=option.waypoints,
         cost_usd=option.cost_usd,
         eta_hours=option.eta_hours,
         risk_score=option.risk_score,
@@ -52,6 +57,8 @@ def _to_option_response(option: RouteOption, selected_path: list[str] | None) ->
         tariff_delta_usd=option.tariff_delta_usd,
         policy_penalty_usd=option.policy_penalty_usd,
         composite_score=option.composite_score,
+        lp_score=option.lp_score,
+        constraints_applied=option.constraints_applied,
         selected_best=(selected_path == option.path),
     )
 
@@ -98,5 +105,8 @@ def reroute_shipment_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+    persist_route_plan(db, plan)
+    db.commit()
 
     return _to_plan_response(plan)
