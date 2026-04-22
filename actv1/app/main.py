@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.db.init_data import seed_default_roles_and_admin
+from db.init_data import seed_default_roles_and_admin
 from app.db.session import SessionLocal
 from app.services.redis_client import redis_client
 

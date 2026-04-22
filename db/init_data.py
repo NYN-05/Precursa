@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import get_password_hash
-from app.db.models import Role, User
+from db.models import Role, User
 
 
 def seed_default_roles_and_admin(db: Session) -> None:
