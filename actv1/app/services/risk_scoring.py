@@ -169,7 +169,11 @@ class RiskScoringService:
             normal_mode=False,
         )
 
-        dtrain = xgb.DMatrix(training_features, label=training_targets, feature_names=list(FEATURE_NAMES))
+        dtrain = xgb.DMatrix(
+            training_features,
+            label=training_targets,
+            feature_names=list(FEATURE_NAMES),
+        )
         self._booster = xgb.train(
             {
                 "objective": "reg:squarederror",
@@ -204,7 +208,9 @@ class RiskScoringService:
         return max(elapsed.total_seconds() / 3600.0, 0.0)
 
     def _extract_features(self, snapshot: ShipmentSnapshot) -> list[float]:
-        feature_vector = snapshot.feature_vector if isinstance(snapshot.feature_vector, dict) else {}
+        feature_vector = (
+            snapshot.feature_vector if isinstance(snapshot.feature_vector, dict) else {}
+        )
 
         event_count_norm = _clamp(snapshot.event_count / 25.0)
         avg_severity = _clamp(snapshot.avg_severity)
@@ -247,7 +253,7 @@ class RiskScoringService:
     @staticmethod
     def _build_top_factors(shap_values: list[float], top_k: int) -> list[RiskFactor]:
         ranked: list[RiskFactor] = []
-        for feature_name, shap_value in zip(FEATURE_NAMES, shap_values):
+        for feature_name, shap_value in zip(FEATURE_NAMES, shap_values, strict=True):
             direction = "increase" if shap_value >= 0 else "decrease"
             ranked.append(
                 RiskFactor(
