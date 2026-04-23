@@ -330,3 +330,141 @@ export function riskColor(statusOrDri) {
 export function riskLabel(statusOrDri) {
   return typeof statusOrDri === "number" ? statusFromDri(statusOrDri).toUpperCase() : String(statusOrDri).toUpperCase();
 }
+
+// ========================================
+// LIVE SIMULATION ENGINE
+// ========================================
+
+// Shipment destinations (for movement simulation)
+export const SHIPMENT_DESTINATIONS = {
+  "SGP-0142": { lat: 3.0, lon: 101.4, port: "Port Klang" }, // Singapore → Port Klang
+  "IND-0331": { lat: 6.9271, lon: 79.8612, port: "Colombo" }, // Mumbai → Colombo
+  "SHA-2207": { lat: 35.1796, lon: 129.0756, port: "Busan" }, // Shanghai → Busan
+  "HAM-1180": { lat: 51.9244, lon: 4.4777, port: "Rotterdam" }, // Hamburg → Rotterdam
+  "LAX-0914": { lat: 51.9542, lon: 1.3511, port: "Felixstowe" }, // LA → Felixstowe
+};
+
+// Track simulation state per shipment
+let simulationState = new Map(); // shipmentId -> { progress, eventCounter, lastDriIncrease, movedAt }
+
+export function initializeSimulation(shipments) {
+  shipments.forEach((s) => {
+    if (!simulationState.has(s.id)) {
+      simulationState.set(s.id, {
+        progress: Math.random() * 0.3, // Start shipments at random positions
+        eventCounter: 0,
+        lastDriIncrease: 0,
+        movedAt: Date.now(),
+      });
+    }
+  });
+}
+
+export function interpolateLatLon(fromLat, fromLon, toLat, toLon, progress) {
+  const clampedProgress = Math.max(0, Math.min(1, progress));
+  return {
+    lat: fromLat + (toLat - fromLat) * clampedProgress,
+    lon: fromLon + (toLon - fromLon) * clampedProgress,
+  };
+}
+
+export function simulateMovement(shipments) {
+  const now = Date.now();
+  const speedFactor = 0.00015; // Progress increment per millisecond
+
+  return shipments.map((shipment) => {
+    const state = simulationState.get(shipment.id) || {
+      progress: 0.2,
+      eventCounter: 0,
+      lastDriIncrease: 0,
+      movedAt: now,
+    };
+
+    // Update movement progress
+    const timeDelta = now - state.movedAt;
+    state.progress = Math.min(1, state.progress + speedFactor * timeDelta);
+    state.movedAt = now;
+
+    // Get destination
+    const destination = SHIPMENT_DESTINATIONS[shipment.id];
+    const originLat = shipment.lat;
+    const originLon = shipment.lon;
+
+    let newLat = originLat;
+    let newLon = originLon;
+
+    if (destination) {
+      const interpolated = interpolateLatLon(
+        originLat,
+        originLon,
+        destination.lat,
+        destination.lon,
+        state.progress,
+      );
+      newLat = interpolated.lat;
+      newLon = interpolated.lon;
+    }
+
+    // Event simulation: random events trigger every 15-25 seconds
+    state.eventCounter += 1;
+    let driDelta = 0;
+    let eventTriggered = null;
+
+    if (state.eventCounter > 25 + Math.random() * 30) {
+      // ~15-25 seconds at 1 update/sec
+      const eventRand = Math.random();
+      let eventDri = 0;
+
+      if (eventRand < 0.4) {
+        eventDri = 5 + Math.random() * 15; // Weather worsening
+        eventTriggered = "Weather severity increased";
+      } else if (eventRand < 0.7) {
+        eventDri = 8 + Math.random() * 18; // Port congestion spike
+        eventTriggered = "Port congestion spike detected";
+      } else {
+        eventDri = 6 + Math.random() * 12; // Vessel delay
+        eventTriggered = "Unexpected delay reported";
+      }
+
+      driDelta = Math.round(eventDri);
+      state.eventCounter = 0;
+      state.lastDriIncrease = now;
+    }
+
+    simulationState.set(shipment.id, state);
+
+    return {
+      ...shipment,
+      lat: newLat,
+      lon: newLon,
+      progress: state.progress,
+      dri: Math.min(100, shipment.dri + driDelta),
+      status: statusFromDri(Math.min(100, shipment.dri + driDelta)),
+      eventTriggered,
+      driDelta,
+    };
+  });
+}
+
+export function detectShipmentChanges(newShipments, oldShipments) {
+  const oldMap = new Map(oldShipments.map((s) => [s.id, s]));
+  const changes = new Map();
+
+  newShipments.forEach((newS) => {
+    const oldS = oldMap.get(newS.id);
+    if (!oldS) {
+      changes.set(newS.id, { driChanged: false, eventTriggered: null });
+      return;
+    }
+
+    const driChanged = newS.dri !== oldS.dri;
+    changes.set(newS.id, {
+      driChanged,
+      oldDri: oldS.dri,
+      newDri: newS.dri,
+      eventTriggered: newS.eventTriggered,
+    });
+  });
+
+  return changes;
+}

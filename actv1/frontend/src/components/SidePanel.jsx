@@ -26,6 +26,7 @@ export default function SidePanel({
   actionState,
   onSelectShipment,
   onAction,
+  shipmentChanges = new Map(),
 }) {
   return (
     <div className="side-panel">
@@ -50,30 +51,43 @@ export default function SidePanel({
         </div>
 
         <div className="feed-list">
-          {topRiskList.map((shipment, index) => (
-            <button
-              className={`feed-item ${selectedShipment?.id === shipment.id ? 'active' : ''}`}
-              key={shipment.id}
-              onClick={() => onSelectShipment(shipment)}
-              type="button"
-            >
-              <div className="feed-main">
-                <span className="rank">{index + 1}</span>
-                <span
-                  className="risk-dot"
-                  style={{ background: riskColor(shipment.status) }}
-                  aria-label={`${shipment.statusLabel} risk`}
-                />
-                <strong>{shipment.id}</strong>
-                <span className="dri-pill">DRI {shipment.dri}</span>
-              </div>
-              <ul className="reason-list">
-                {shipment.top_factors.slice(0, 3).map((factor) => (
-                  <li key={`${shipment.id}-${factor.name}`}>{factor.label || factor.name}</li>
-                ))}
-              </ul>
-            </button>
-          ))}
+          {topRiskList.map((shipment, index) => {
+            const change = shipmentChanges.get(shipment.id)
+            const showAlert = change?.driChanged && change?.newDri > change?.oldDri
+            
+            return (
+              <button
+                className={`feed-item ${selectedShipment?.id === shipment.id ? 'active' : ''} ${showAlert ? 'alert' : ''}`}
+                key={shipment.id}
+                onClick={() => onSelectShipment(shipment)}
+                type="button"
+              >
+                <div className="feed-main">
+                  <span className="rank">{index + 1}</span>
+                  <span
+                    className="risk-dot"
+                    style={{ background: riskColor(shipment.status) }}
+                    aria-label={`${shipment.statusLabel} risk`}
+                  />
+                  <strong>{shipment.id}</strong>
+                  <span className="dri-pill">DRI {shipment.dri}</span>
+                </div>
+                {showAlert && (
+                  <div className="alert-badge">
+                    ⚠️ DRI {change.oldDri} → {change.newDri}
+                  </div>
+                )}
+                {change?.eventTriggered && (
+                  <div className="event-badge">🚨 {change.eventTriggered}</div>
+                )}
+                <ul className="reason-list">
+                  {shipment.top_factors.slice(0, 3).map((factor) => (
+                    <li key={`${shipment.id}-${factor.name}`}>{factor.label || factor.name}</li>
+                  ))}
+                </ul>
+              </button>
+            )
+          })}
         </div>
       </section>
 
@@ -89,6 +103,13 @@ export default function SidePanel({
               <small>DRI</small>
             </div>
           </div>
+
+          {shipmentChanges.get(selectedShipment.id)?.eventTriggered && (
+            <div className="event-notification">
+              🚨 <strong>{shipmentChanges.get(selectedShipment.id).eventTriggered}</strong>
+              <p>Risk has increased due to real-time event detection.</p>
+            </div>
+          )}
 
           <div className="explanation-block">
             <h3>

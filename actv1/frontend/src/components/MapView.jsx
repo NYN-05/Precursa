@@ -13,21 +13,25 @@ function factorLine(factor) {
   return `${factor.label || factor.name} (${factor.impact}%)`
 }
 
-export default function MapView({ shipments, selectedShipment, onSelectShipment }) {
+export default function MapView({ shipments, selectedShipment, onSelectShipment, shipmentChanges = new Map() }) {
   return (
     <div className="map-wrap">
       <div className="map-status-bar">
         <div>
           <span className="status-dot status-high" />
-          High
+          High Risk
         </div>
         <div>
           <span className="status-dot status-medium" />
-          Medium
+          Medium Risk
         </div>
         <div>
           <span className="status-dot status-low" />
-          Low
+          Low Risk
+        </div>
+        <div className="status-divider">
+          <span className="pulse-dot" />
+          Live Updates
         </div>
       </div>
 
@@ -40,6 +44,9 @@ export default function MapView({ shipments, selectedShipment, onSelectShipment 
         {shipments.map((shipment) => {
           const color = riskColor(shipment.status)
           const isSelected = selectedShipment?.id === shipment.id
+          const change = shipmentChanges.get(shipment.id)
+          const isHighRisk = shipment.dri > 75
+          const hasRecentEvent = change?.eventTriggered && change?.eventTriggered
 
           return (
             <CircleMarker
@@ -53,6 +60,7 @@ export default function MapView({ shipments, selectedShipment, onSelectShipment 
                 opacity: 1,
                 weight: isSelected ? 4 : 2,
               }}
+              className={`shipment-marker ${isHighRisk ? 'high-risk-pulse' : ''} ${hasRecentEvent ? 'event-triggered' : ''}`}
               eventHandlers={{
                 click: (event) => {
                   onSelectShipment(shipment)
@@ -64,7 +72,10 @@ export default function MapView({ shipments, selectedShipment, onSelectShipment 
               }}
             >
               <Tooltip direction="top" opacity={0.92} permanent={shipment.dri > 75}>
-                <span>{shipment.id} · DRI {shipment.dri}</span>
+                <span className="marker-tooltip">
+                  {shipment.id} · DRI {shipment.dri}
+                  {change?.eventTriggered && <span className="event-label"> ⚠️ {change.eventTriggered}</span>}
+                </span>
               </Tooltip>
               <Popup>
                 <div className="map-popup">
@@ -73,6 +84,9 @@ export default function MapView({ shipments, selectedShipment, onSelectShipment 
                   <span>
                     Location: {shipment.lat.toFixed(2)}, {shipment.lon.toFixed(2)}
                   </span>
+                  {change?.eventTriggered && (
+                    <span className="event-info">🚨 Event: {change.eventTriggered}</span>
+                  )}
                   <span>Factors:</span>
                   <ul>
                     {shipment.top_factors.slice(0, 2).map((factor) => (
