@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     project_name: str = "Precursa Platform Foundation"
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
+    cors_origins: str = ""
 
     database_url: str = "postgresql+psycopg://precursa:precursa@localhost:5432/precursa"
     redis_url: str = ""  # Empty = use in-memory fallback
@@ -31,7 +32,7 @@ class Settings(BaseSettings):
     notification_default_recipient: str = "ops-control@precursa.local"
 
     # External Integration Keys
-    openweather_api_key: str | None = None
+    tomorrow_io_api_key: str | None = None
     aisstream_api_key: str | None = None
     news_api_key: str | None = None
 
@@ -49,6 +50,10 @@ class Settings(BaseSettings):
         "logistics_manager",
         "auditor",
     )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

@@ -1,9 +1,9 @@
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
+import { API_PREFIX, authHeaders, ensureAccessToken } from '../api/client'
 
 const center = [1.264, 103.819]
-const API = "http://127.0.0.1:8001"
 
 
 // 🎯 DRI color
@@ -33,11 +33,52 @@ export default function MapView() {
 
   const fetchData = async () => {
     try {
-      const s = await axios.get(`${API}/shipments`)
-      const v = await axios.get(`${API}/vessels`)
+      const token = await ensureAccessToken()
+      // Fetching snapshots which have position in feature_vector or derived from port names
+      const s = await axios.get(`${API_PREFIX}/state/snapshots`, {
+        headers: authHeaders(token),
+      })
+      
+      // Basic port mapping for demo purposes
+      const portCoords = {
+        "Mumbai": [18.9220, 72.8347],
+        "Rotterdam": [51.9225, 4.4792],
+        "Shanghai": [31.2304, 121.4737],
+        "Los Angeles": [33.7291, -118.2620],
+        "Singapore": [1.3521, 103.8198],
+        "Hamburg": [53.5753, 9.9920],
+        "Chennai": [13.0827, 80.2707],
+        "Felixstowe": [51.9614, 1.3514],
+        "Jebel Ali": [24.9857, 55.0272],
+        "Antwerp": [51.2194, 4.4025],
+        "Colombo": [6.9271, 79.8612],
+        "Busan": [35.1796, 129.0756],
+        "Savannah": [32.0809, -81.0912],
+      };
 
-      setShipments(s.data)
-      setVessels(v.data)
+      const mappedShipments = s.data.map(item => {
+        const fv = item.feature_vector || {};
+        const originPort = fv.origin_port || "Singapore";
+        const coords = portCoords[originPort] || center;
+        
+        return {
+          id: item.shipment_key,
+          lat: coords[0] + (Math.random() - 0.5) * 2, // Slight randomization for map clarity
+          lon: coords[1] + (Math.random() - 0.5) * 2,
+          dri: item.provisional_dri,
+          weather_risk: fv.delay_hours || (Math.random() * 100),
+          rerouted: fv.status === 'rerouted' || item.provisional_dri > 75
+        };
+      });
+
+      setShipments(mappedShipments)
+      
+      // For now, return some mock vessels near Singapore
+      setVessels([
+        { lat: 1.2, lon: 103.8 },
+        { lat: 1.3, lon: 104.0 },
+        { lat: 1.1, lon: 103.5 },
+      ])
     } catch (err) {
       console.error("API ERROR:", err)
     }
@@ -73,7 +114,7 @@ export default function MapView() {
           <Popup>
             <strong>{s.id}</strong><br />
             DRI: {s.dri}<br />
-            Weather: {s.weather_risk}<br />
+            Weather: {Math.round(s.weather_risk)}<br />
             {s.rerouted ? "⚠️ High Risk" : "✅ Stable"}
           </Popup>
         </CircleMarker>
@@ -92,7 +133,7 @@ export default function MapView() {
           }}
         >
           <Popup>
-            🌦 Weather Risk: {s.weather_risk}
+            🌦 Weather Risk: {Math.round(s.weather_risk)}
           </Popup>
         </CircleMarker>
       ))}

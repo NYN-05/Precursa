@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react"
 import axios from "axios"
-
-const API = "http://127.0.0.1:8001"
+import { API_PREFIX, authHeaders, ensureAccessToken } from "../api/client"
 
 export default function SidePanel() {
   const [shipments, setShipments] = useState([])
   const [selected, setSelected] = useState(null)
   const [explanation, setExplanation] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState("")
 
   useEffect(() => {
     fetchData()
@@ -15,11 +16,18 @@ export default function SidePanel() {
   }, [])
 
   const fetchData = async () => {
+    setError("")
     try {
-      const res = await axios.get(`${API}/shipments`)
+      const token = await ensureAccessToken()
+      const res = await axios.get(`${API_PREFIX}/risk/shipments?limit=20&top_k=3`, {
+        headers: authHeaders(token),
+      })
       setShipments(res.data)
-    } catch (e) {
-      console.error(e)
+    } catch (err) {
+      console.error(err)
+      setError("Unable to load shipments. Check backend status and credentials.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -28,25 +36,38 @@ export default function SidePanel() {
     setExplanation("Analyzing...")
 
     try {
-      const res = await axios.post(`${API}/explain`, shipment)
+      const token = await ensureAccessToken()
+      const res = await axios.post(
+        `${API_PREFIX}/copilot`,
+        {
+          shipment_key: shipment.shipment_key,
+          question: "Why is this shipment at this risk level and what action is recommended?",
+        },
+        {
+          headers: authHeaders(token),
+        },
+      )
       setExplanation(res.data.explanation)
-    } catch (e) {
+    } catch {
       setExplanation("Failed to fetch explanation.")
     }
   }
 
   return (
-    <div>
-      <h2 style={{ marginBottom: "20px" }}>🧠 AI Copilot</h2>
+    <div className="side-panel">
+      <h2 style={{ marginBottom: "20px" }}>AI Copilot</h2>
+
+      {isLoading && <p>Loading shipment risk feed...</p>}
+      {error && <p style={{ color: "#fca5a5" }}>{error}</p>}
 
       {shipments.map((s, i) => (
-        <div key={i} style={{
+        <div key={s.shipment_key ?? i} style={{
           padding: "10px",
           marginBottom: "10px",
           borderRadius: "8px",
           background: "rgba(255,255,255,0.05)"
         }}>
-          <strong>{s.id}</strong><br />
+          <strong>{s.shipment_key}</strong><br />
           DRI: {s.dri}<br />
 
           <button
@@ -73,7 +94,7 @@ export default function SidePanel() {
           background: "rgba(37, 99, 235, 0.1)",
           borderRadius: "10px"
         }}>
-          <h3>📊 AI Insight</h3>
+          <h3>AI Insight</h3>
           <p>{explanation}</p>
         </div>
       )}

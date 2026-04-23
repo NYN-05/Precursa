@@ -23,7 +23,7 @@ FEATURE_NAMES: tuple[str, ...] = (
     "route_variability",
 )
 
-MODEL_VERSION = "ml-pipeline-v1"
+MODEL_VERSION = "chunk4-v1"
 
 
 def _clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
@@ -68,6 +68,9 @@ class RiskScoringService:
         }
         
         ml_output = compute_dri_pipeline(snapshot_dict, external_data)
+        provisional_dri = int(snapshot.provisional_dri or 0)
+        model_dri = int(ml_output["dri"])
+        final_dri = max(model_dri, provisional_dri)
         
         # 3. Build top factors from ML top_features
         top_factors = [
@@ -76,19 +79,19 @@ class RiskScoringService:
         ]
 
         # 4. Log change
-        old_dri = snapshot.provisional_dri
-        if ml_output["dri"] != old_dri:
+        old_dri = provisional_dri
+        if final_dri != old_dri:
             logger.info(
                 "DRI updated for %s: %d -> %d (ML Pipeline)", 
-                snapshot.shipment_key, old_dri, ml_output["dri"]
+                snapshot.shipment_key, old_dri, final_dri
             )
 
         return ShipmentRiskScore(
             shipment_key=snapshot.shipment_key,
-            dri=ml_output["dri"],
+            dri=final_dri,
             xgboost_score=ml_output["context_score"],
             anomaly_score=ml_output["anomaly_score"],
-            combined_score=ml_output["dri"] / 100.0,
+            combined_score=final_dri / 100.0,
             top_factors=top_factors[:top_k],
             model_version=MODEL_VERSION,
             scored_at=datetime.now(timezone.utc),
