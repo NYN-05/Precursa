@@ -1,102 +1,133 @@
-import { useEffect, useState } from "react"
-import axios from "axios"
-import { API_PREFIX, authHeaders, ensureAccessToken } from "../api/client"
+import { riskColor, riskLabel } from '../api/client'
 
-export default function SidePanel() {
-  const [shipments, setShipments] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [explanation, setExplanation] = useState("")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState("")
+function money(value) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value || 0)
+}
 
-  useEffect(() => {
-    fetchData()
-    const interval = setInterval(fetchData, 5000)
-    return () => clearInterval(interval)
-  }, [])
+function factorText(factor) {
+  return `${factor.label || factor.name} -> ${factor.impact}%`
+}
 
-  const fetchData = async () => {
-    setError("")
-    try {
-      const token = await ensureAccessToken()
-      const res = await axios.get(`${API_PREFIX}/risk/shipments?limit=20&top_k=3`, {
-        headers: authHeaders(token),
-      })
-      setShipments(res.data)
-    } catch (err) {
-      console.error(err)
-      setError("Unable to load shipments. Check backend status and credentials.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+function updatedLabel(date) {
+  if (!date) return 'Waiting for first refresh'
+  return `Updated ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+}
 
-  const handleExplain = async (shipment) => {
-    setSelected(shipment)
-    setExplanation("Analyzing...")
-
-    try {
-      const token = await ensureAccessToken()
-      const res = await axios.post(
-        `${API_PREFIX}/copilot`,
-        {
-          shipment_key: shipment.shipment_key,
-          question: "Why is this shipment at this risk level and what action is recommended?",
-        },
-        {
-          headers: authHeaders(token),
-        },
-      )
-      setExplanation(res.data.explanation)
-    } catch {
-      setExplanation("Failed to fetch explanation.")
-    }
-  }
-
+export default function SidePanel({
+  selectedShipment,
+  shipmentList,
+  topRiskList,
+  usingFallback,
+  lastUpdated,
+  actionState,
+  onSelectShipment,
+  onAction,
+}) {
   return (
     <div className="side-panel">
-      <h2 style={{ marginBottom: "20px" }}>AI Copilot</h2>
-
-      {isLoading && <p>Loading shipment risk feed...</p>}
-      {error && <p style={{ color: "#fca5a5" }}>{error}</p>}
-
-      {shipments.map((s, i) => (
-        <div key={s.shipment_key ?? i} style={{
-          padding: "10px",
-          marginBottom: "10px",
-          borderRadius: "8px",
-          background: "rgba(255,255,255,0.05)"
-        }}>
-          <strong>{s.shipment_key}</strong><br />
-          DRI: {s.dri}<br />
-
-          <button
-            onClick={() => handleExplain(s)}
-            style={{
-              marginTop: "5px",
-              padding: "5px 10px",
-              background: "#2563eb",
-              border: "none",
-              borderRadius: "5px",
-              color: "white",
-              cursor: "pointer"
-            }}
-          >
-            Explain Risk
-          </button>
+      <header className="panel-header">
+        <div>
+          <p className="eyebrow">AI Copilot</p>
+          <h1>Decision Intelligence</h1>
         </div>
-      ))}
+        <span className="refresh-pill">{updatedLabel(lastUpdated)}</span>
+      </header>
 
-      {selected && (
-        <div style={{
-          marginTop: "20px",
-          padding: "15px",
-          background: "rgba(37, 99, 235, 0.1)",
-          borderRadius: "10px"
-        }}>
-          <h3>AI Insight</h3>
-          <p>{explanation}</p>
+      {usingFallback && (
+        <div className="notice">
+          Backend unavailable. Showing resilient fallback shipments with default DRI values.
         </div>
+      )}
+
+      <section className="risk-feed" aria-label="Top shipment risk feed">
+        <div className="section-title">
+          <h2>Top Risk Feed</h2>
+          <span>{shipmentList.length} live shipments</span>
+        </div>
+
+        <div className="feed-list">
+          {topRiskList.map((shipment, index) => (
+            <button
+              className={`feed-item ${selectedShipment?.id === shipment.id ? 'active' : ''}`}
+              key={shipment.id}
+              onClick={() => onSelectShipment(shipment)}
+              type="button"
+            >
+              <div className="feed-main">
+                <span className="rank">{index + 1}</span>
+                <span
+                  className="risk-dot"
+                  style={{ background: riskColor(shipment.status) }}
+                  aria-label={`${shipment.statusLabel} risk`}
+                />
+                <strong>{shipment.id}</strong>
+                <span className="dri-pill">DRI {shipment.dri}</span>
+              </div>
+              <ul className="reason-list">
+                {shipment.top_factors.slice(0, 3).map((factor) => (
+                  <li key={`${shipment.id}-${factor.name}`}>{factor.label || factor.name}</li>
+                ))}
+              </ul>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {selectedShipment ? (
+        <section className="selected-insight">
+          <div className="selected-topline">
+            <div>
+              <p className="eyebrow">Selected Shipment</p>
+              <h2>{selectedShipment.id}</h2>
+            </div>
+            <div className="score-gauge" style={{ borderColor: riskColor(selectedShipment.status) }}>
+              <span>{selectedShipment.dri}</span>
+              <small>DRI</small>
+            </div>
+          </div>
+
+          <div className="explanation-block">
+            <h3>
+              Shipment {selectedShipment.id} is {riskLabel(selectedShipment.status)} RISK because:
+            </h3>
+            <ul>
+              {selectedShipment.top_factors.map((factor) => (
+                <li key={`${selectedShipment.id}-detail-${factor.name}`}>{factorText(factor)}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="recommendation-block">
+            <h3>Recommendation</h3>
+            <p>-&gt; Reroute via {selectedShipment.recommendation.route}</p>
+            <p>-&gt; Estimated time saved: {selectedShipment.recommendation.time_saved}</p>
+            <p>-&gt; Cost impact: +{money(selectedShipment.recommendation.cost_impact)}</p>
+          </div>
+
+          <div className="action-row">
+            <button className="primary-action" type="button" onClick={() => onAction('approve')}>
+              Approve Reroute
+            </button>
+            <button type="button" onClick={() => onAction('reject')}>
+              Reject
+            </button>
+            <button type="button" onClick={() => onAction('details')}>
+              View Details
+            </button>
+          </div>
+
+          {actionState?.message && (
+            <div className={`action-state ${actionState.type || ''}`}>{actionState.message}</div>
+          )}
+        </section>
+      ) : (
+        <section className="selected-insight empty">
+          Select a shipment marker or top-risk item to load the risk explanation and recommended action.
+        </section>
       )}
     </div>
   )

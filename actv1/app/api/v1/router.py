@@ -13,6 +13,7 @@ from app.api.v1.protected import router as protected_router
 from app.api.v1.realtime import router as realtime_router
 from app.api.v1.risk import router as risk_router
 from app.api.v1.routes import router as routes_router
+from app.api.v1.shipments import router as shipments_router
 from app.api.v1.state import router as state_router
 from app.api.v1.wargame import router as wargame_router
 from app.core.config import settings
@@ -25,6 +26,7 @@ api_router.include_router(protected_router, prefix=settings.api_v1_prefix)
 api_router.include_router(state_router, prefix=settings.api_v1_prefix)
 api_router.include_router(risk_router, prefix=settings.api_v1_prefix)
 api_router.include_router(routes_router, prefix=settings.api_v1_prefix)
+api_router.include_router(shipments_router, prefix="/api")
 api_router.include_router(agent_router, prefix=settings.api_v1_prefix)
 api_router.include_router(realtime_router, prefix=settings.api_v1_prefix)
 api_router.include_router(notifications_router, prefix=settings.api_v1_prefix)

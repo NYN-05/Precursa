@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Any
 
+import requests
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.models import AgentAction, CopilotInteraction, RouteRecord, ShipmentSnapshot
 
 SYSTEM_PROMPT = """
@@ -15,6 +18,8 @@ provided. Never infer, assume, or add context not present in the data.
 Keep explanations to 2-3 sentences. Be specific and factual.
 """.strip()
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class CopilotAnswer:
@@ -22,6 +27,63 @@ class CopilotAnswer:
     grounded_on: list[str]
     shap_factors_used: list[dict[str, Any]]
     route_constraints_used: list[str]
+
+
+def _gemini_grounded_answer(state: dict[str, Any], fallback_answer: str) -> str:
+    provider = (settings.copilot_llm_provider or "").strip().lower()
+    if provider != "gemini" or not settings.gemini_api_key:
+        return fallback_answer
+
+    payload = {
+        "system_instruction": {
+            "parts": [
+                {
+                    "text": SYSTEM_PROMPT,
+                }
+            ]
+        },
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": (
+                            "Rewrite the answer using only the provided grounded data. "
+                            "Return 2-3 concise sentences.\n\n"
+                            f"Grounded state JSON: {state}\n\n"
+                            f"Fallback grounded answer: {fallback_answer}"
+                        )
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 180,
+        },
+    }
+
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
+    )
+
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            timeout=settings.gemini_timeout_seconds,
+        )
+        response.raise_for_status()
+        body = response.json()
+        candidates = body.get("candidates") or []
+        if not candidates:
+            return fallback_answer
+        parts = ((candidates[0].get("content") or {}).get("parts") or [])
+        text = " ".join(str(part.get("text") or "").strip() for part in parts).strip()
+        return text or fallback_answer
+    except Exception as exc:
+        logger.warning("Gemini copilot call failed, using fallback answer: %s", exc)
+        return fallback_answer
 
 
 def _factor_name(factor: dict[str, Any]) -> str:
@@ -97,8 +159,11 @@ def explain_agent_state(state: dict[str, Any]) -> CopilotAnswer:
             f"The grounded factors are {', '.join(factor_clauses) or 'not available'}."
         )
 
+    fallback_answer = f"{first_sentence} {second_sentence}"
+    answer_text = _gemini_grounded_answer(state, fallback_answer)
+
     return CopilotAnswer(
-        answer=f"{first_sentence} {second_sentence}",
+        answer=answer_text,
         grounded_on=grounded_on,
         shap_factors_used=shap_factors,
         route_constraints_used=constraints,

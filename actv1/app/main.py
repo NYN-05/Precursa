@@ -35,6 +35,10 @@ async def lifespan(_: FastAPI):
     finally:
         if agent_task is not None:
             agent_task.cancel()
+            try:
+                await agent_task
+            except asyncio.CancelledError:
+                pass
         await redis_client.close()
 
 

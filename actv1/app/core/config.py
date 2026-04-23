@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     aisstream_api_key: str | None = None
     news_api_key: str | None = None
 
+    # Copilot LLM settings
+    copilot_llm_provider: str = "gemini"
+    gemini_api_key: str | None = "AIzaSyAi0TCkhUSp_ELMzPMgbc28ajM1b8FqtQE"
+    gemini_model: str = "gemini-1.5-flash"
+    gemini_timeout_seconds: int = 10
+
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
