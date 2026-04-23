@@ -29,60 +29,43 @@ class CopilotAnswer:
     route_constraints_used: list[str]
 
 
-def _gemini_grounded_answer(state: dict[str, Any], fallback_answer: str) -> str:
+def _ollama_grounded_answer(state: dict[str, Any], fallback_answer: str) -> str:
     provider = (settings.copilot_llm_provider or "").strip().lower()
-    if provider != "gemini" or not settings.gemini_api_key:
+    if provider != "ollama":
         return fallback_answer
 
+    prompt = (
+        f"{SYSTEM_PROMPT}\n\n"
+        "Rewrite the answer using only the provided grounded data. "
+        "Return 2-3 concise sentences.\n\n"
+        f"Grounded state JSON: {state}\n\n"
+        f"Fallback grounded answer: {fallback_answer}"
+    )
+
     payload = {
-        "system_instruction": {
-            "parts": [
-                {
-                    "text": SYSTEM_PROMPT,
-                }
-            ]
-        },
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": (
-                            "Rewrite the answer using only the provided grounded data. "
-                            "Return 2-3 concise sentences.\n\n"
-                            f"Grounded state JSON: {state}\n\n"
-                            f"Fallback grounded answer: {fallback_answer}"
-                        )
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
+        "model": settings.ollama_model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
             "temperature": 0.2,
-            "maxOutputTokens": 180,
+            "num_predict": 180,
         },
     }
 
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{settings.gemini_model}:generateContent?key={settings.gemini_api_key}"
-    )
+    url = f"{settings.ollama_base_url}/api/generate"
 
     try:
         response = requests.post(
             url,
             json=payload,
-            timeout=settings.gemini_timeout_seconds,
+            timeout=settings.ollama_timeout_seconds,
         )
         response.raise_for_status()
         body = response.json()
-        candidates = body.get("candidates") or []
-        if not candidates:
-            return fallback_answer
-        parts = ((candidates[0].get("content") or {}).get("parts") or [])
-        text = " ".join(str(part.get("text") or "").strip() for part in parts).strip()
+        text = (body.get("response") or "").strip()
         return text or fallback_answer
     except Exception as exc:
-        logger.warning("Gemini copilot call failed, using fallback answer: %s", exc)
+        logger.warning("Ollama copilot call failed, using fallback answer: %s", exc)
         return fallback_answer
 
 
@@ -160,7 +143,7 @@ def explain_agent_state(state: dict[str, Any]) -> CopilotAnswer:
         )
 
     fallback_answer = f"{first_sentence} {second_sentence}"
-    answer_text = _gemini_grounded_answer(state, fallback_answer)
+    answer_text = _ollama_grounded_answer(state, fallback_answer)
 
     return CopilotAnswer(
         answer=answer_text,

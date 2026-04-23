@@ -37,10 +37,10 @@ class Settings(BaseSettings):
     news_api_key: str | None = None
 
     # Copilot LLM settings
-    copilot_llm_provider: str = "gemini"
-    gemini_api_key: str | None = "AIzaSyAi0TCkhUSp_ELMzPMgbc28ajM1b8FqtQE"
-    gemini_model: str = "gemini-1.5-flash"
-    gemini_timeout_seconds: int = 10
+    copilot_llm_provider: str = "ollama"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:7b"
+    ollama_timeout_seconds: int = 30
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"

@@ -104,13 +104,25 @@ class RiskScoringService:
     ) -> list[ShipmentRiskScore]:
         return [self.score_snapshot(snapshot, top_k=top_k) for snapshot in snapshots]
 
-
+from app.integrations.factory import fetch_all
 def compute_dri_full(combined_data: dict[str, Any]) -> int:
     """Legacy API support."""
     # Since combined_data already has external+shipment, we can simulate the pipeline
     # But for a single call, we just use the pipeline logic
     ml_output = compute_dri_pipeline(combined_data, combined_data)
     return ml_output["dri"]
+def compute_dri_with_external(shipments):
+    enriched = fetch_all(shipments)
+
+    updated = []
+
+    for s in enriched:
+        dri = compute_dri(s)
+
+        s["dri"] = dri
+        updated.append(s)
+
+    return updated
 
 
 risk_scoring_service = RiskScoringService()

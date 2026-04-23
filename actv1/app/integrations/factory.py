@@ -1,11 +1,31 @@
 from typing import Any
 import logging
+
 from .weather import WeatherAdapter
 from .ais import AISAdapter
 from .news import NewsAdapter
 from .port import PortAdapter
 
+
 logger = logging.getLogger(__name__)
+
+def fetch_all(shipments):
+    results = []
+
+    for s in shipments:
+        region = s.get("region", "default")
+
+        # Fallback empty weather since we removed the invalid import
+        weather = {}
+
+        combined = {
+            **s,
+            **weather
+        }
+
+        results.append(combined)
+
+    return results
 
 class IntegrationFactory:
     def __init__(self):

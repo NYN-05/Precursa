@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypedDict
 
@@ -400,6 +401,18 @@ def list_agent_actions(
         query = query.where(AgentAction.shipment_key == shipment_key)
     query = query.order_by(desc(AgentAction.executed_at), desc(AgentAction.id)).limit(limit)
     return list(db.scalars(query).all())
+
+
+def agent_loop(shipments: list[str]) -> None:
+    """Synchronous agent loop for background execution."""
+    while True:
+        with SessionLocal() as db:
+            for shipment_key in shipments:
+                state = run_agent_for_shipment(db, shipment_key)
+                if state.get("dri_score", 0) > 75:
+                    logger.info(f"Auto-reroute triggered for {shipment_key}")
+            db.commit()
+        time.sleep(10)
 
 
 async def agent_tick_loop() -> None:

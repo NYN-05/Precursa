@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import AuthContext, require_roles
 from app.db.models import ShipmentSnapshot
 from app.db.session import get_db
+from app.integrations.fallback_data import AIS_FALLBACKS, NEWS_FALLBACKS, WEATHER_FALLBACKS
 from app.services.feature_state import list_shipment_snapshots
 from app.services.route_intelligence import PORTS
 from app.services.risk_scoring import risk_scoring_service
@@ -35,6 +36,7 @@ class DashboardShipment(BaseModel):
     status: str
     top_factors: list[DashboardRiskFactor]
     recommendation: DashboardRecommendation
+    fallback_catalog_sizes: dict[str, int]
 
 
 def _status(dri: int) -> str:
@@ -124,6 +126,11 @@ def _to_dashboard_shipment(snapshot: ShipmentSnapshot) -> DashboardShipment:
         status=_status(dri),
         top_factors=factors[:3],
         recommendation=_recommendation(dri, feature_vector),
+        fallback_catalog_sizes={
+            "weather": len(WEATHER_FALLBACKS),
+            "news": len(NEWS_FALLBACKS),
+            "ais": len(AIS_FALLBACKS),
+        },
     )
 
 
